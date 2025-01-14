@@ -1,7 +1,12 @@
 package com.example.literalura.service;
 
+import com.example.literalura.entity.AuthorEntity;
+import com.example.literalura.entity.BookEntity;
+import com.example.literalura.model.Author;
 import com.example.literalura.model.Book;
 import com.example.literalura.model.BooksResponse;
+import com.example.literalura.repository.AuthorRepository;
+import com.example.literalura.repository.BookRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,6 +51,76 @@ public class BookService {
                         .anyMatch(author -> author.getName().equalsIgnoreCase(authorName)))
                 .collect(Collectors.toList());
     }
+    @Autowired
+    private BookRepository bookRepository;
+
+    public BookEntity searchAndSaveBookByTitle(String title) {
+        BooksResponse response = getBooks(title);
+        if (response != null && !response.getResults().isEmpty()) {
+            Book book = response.getResults().get(0);
+            String language = book.getSubjects() != null && !book.getSubjects().isEmpty()
+                    ? book.getSubjects().get(0)
+                    : "Unknown";
+            BookEntity bookEntity = new BookEntity(
+                    book.getTitle(),
+                    book.getAuthors().isEmpty() ? "Unknown" : book.getAuthors().get(0).getName(),
+                    language,
+                    book.getDownload_count()
+            );
+            return bookRepository.save(bookEntity);
+        }
+        return null;
+    }
+
+    public List<BookEntity> getAllBooks() {
+        return bookRepository.findAll();
+    }
+
+    public List<BookEntity> getBooksByLanguage(String language) {
+        return bookRepository.findByLanguage(language);
+    }
+    @Autowired
+    private AuthorRepository authorRepository;
+
+    public BookEntity searchAndSaveBook(String title) {
+        BooksResponse response = getBooks(title);
+        if (response != null && !response.getResults().isEmpty()) {
+            Book book = response.getResults().get(0);
+
+            // Guardar autor
+            Author firstAuthor = book.getAuthors().isEmpty() ? null : book.getAuthors().get(0);
+            AuthorEntity authorEntity = null;
+            if (firstAuthor != null) {
+                authorEntity = new AuthorEntity(
+                        firstAuthor.getName(),
+                        firstAuthor.getBirthYear(),
+                        firstAuthor.getDeathYear()
+                );
+                authorRepository.save(authorEntity);
+            }
+
+            // Guardar libro
+            BookEntity bookEntity = new BookEntity(
+                    book.getTitle(),
+                    firstAuthor != null ? firstAuthor.getName() : "Unknown",
+                    book.getSubjects() != null && !book.getSubjects().isEmpty()
+                            ? book.getSubjects().get(0)
+                            : "Unknown",
+                    book.getDownload_count()
+            );
+            return bookRepository.save(bookEntity);
+        }
+        return null;
+    }
+
+    public List<AuthorEntity> getAllAuthors() {
+        return authorRepository.findAll();
+    }
+
+    public List<AuthorEntity> getAuthorsAliveInYear(Integer year) {
+        return authorRepository.findByBirthYearLessThanEqualAndDeathYearGreaterThanEqual(year, year);
+    }
+
 
 }
 
